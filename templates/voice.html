@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .voice-container {
+        min-height: 60vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f8f9fa;
+        padding: 40px 0 60px 0;
+    }
+    .voice-card {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        border-radius: 18px;
+        box-shadow: 0 8px 32px rgba(44,62,80,0.10);
+        background: #fff;
+        overflow: hidden;
+    }
+    .voice-card-header {
+        background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+        color: #fff;
+        padding: 2rem 1rem 1.2rem 1rem;
+        text-align: center;
+        font-size: 1.6rem;
+        font-weight: 700;
+        border-radius: 18px 18px 0 0;
+        letter-spacing: 1px;
+    }
+    .voice-card-body {
+        padding: 2rem 1.5rem 2.5rem 1.5rem;
+        text-align: center;
+    }
+    #recordBtn {
+        background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+        color: #fff;
+        border: none;
+        padding: 0.9rem 2.2rem;
+        font-size: 1.15rem;
+        border-radius: 10px;
+        font-weight: 600;
+        margin: 30px 0 10px 0;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+        transition: background 0.2s, transform 0.2s;
+        display: inline-block;
+    }
+    #recordBtn:hover {
+        background: linear-gradient(90deg, #2575fc 0%, #6a11cb 100%);
+        transform: translateY(-2px) scale(1.04);
+    }
+    .status {
+        font-size: 1rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        min-height: 1.5em;
+    }
+    .feature-card, .transcript-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(44,62,80,0.04);
+        margin-bottom: 1rem;
+        padding: 1.2rem 1rem;
+        text-align: left;
+    }
+    .feature-title {
+        font-weight: 600;
+        color: #495057;
+    }
+    .badge {
+        font-size: 1rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 10px;
+        font-weight: 600;
+        background: #6a11cb;
+        color: #fff;
+    }
+    .alert {
+        border-radius: 10px;
+        font-size: 1.1rem;
+        padding: 1rem;
+        text-align: center;
+    }
+    .spinner-container {
+        display: flex;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+    .hidden {
+        display: none;
+    }
+    @media (max-width: 600px) {
+        .voice-card {
+            max-width: 98vw;
+        }
+        .voice-card-header, .voice-card-body {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+    }
+</style>
+
+<div class="voice-container">
+    <div class="voice-card">
+        <div class="voice-card-header">
+            Voice Health Analysis
+        </div>
+        <div class="voice-card-body">
+            <button id="recordBtn">
+                <i class="fas fa-microphone"></i> Start Recording
+            </button>
+            <div id="recordingStatus" class="status"></div>
+
+            <div id="results" class="hidden">
+                <div class="feature-card">
+                    <h3 class="feature-title">Analysis Results</h3>
+                    <div id="diagnosis" class="alert alert-success"></div>
+                </div>
+
+                <div class="transcript-card">
+                    <h4 class="feature-title">Transcript</h4>
+                    <div id="transcript" class="transcript-text"></div>
+                </div>
+
+                <div class="feature-card">
+                    <h4 class="feature-title">Voice Features</h4>
+                    <ul id="audioFeatures" class="list-group list-group-flush" style="padding-left:0;"></ul>
+                </div>
+            </div>
+
+            <div id="loading" class="spinner-container hidden">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+const recordBtn = document.getElementById('recordBtn');
+const recordingStatus = document.getElementById('recordingStatus');
+const results = document.getElementById('results');
+const loading = document.getElementById('loading');
+const transcriptDisplay = document.getElementById('transcript');
+const audioFeatures = document.getElementById('audioFeatures');
+const diagnosis = document.getElementById('diagnosis');
+
+// Browser compatibility check
+if (!navigator.mediaDevices || !window.MediaRecorder) {
+    recordBtn.disabled = true;
+    recordingStatus.textContent = "Web Audio API not supported in your browser.";
+}
+
+// Start/stop recording
+recordBtn.onclick = async () => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm; codecs=opus' });
+
+            mediaRecorder.ondataavailable = e => {
+                audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                results.classList.add('hidden');
+                loading.classList.remove('hidden');
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                
+                try {
+                    const response = await fetch('/voice-check', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Server error: ' + response.status);
+                    }
+                    
+                    const data = await response.json();
+                    displayResults(data);
+                } catch (error) {
+                    console.error('Error:', error);
+                    diagnosis.className = 'alert alert-danger';
+                    diagnosis.textContent = 'Error: ' + error.message;
+                    results.classList.remove('hidden');
+                } finally {
+                    loading.classList.add('hidden');
+                }
+            };
+
+            mediaRecorder.start();
+            recordBtn.textContent = 'Stop Recording';
+            recordingStatus.textContent = 'Recording...';
+        } catch (error) {
+            console.error('Error:', error);
+            recordingStatus.textContent = 'Error: ' + error.message;
+        }
+    } else {
+        mediaRecorder.stop();
+        recordBtn.textContent = 'Start Recording';
+        recordingStatus.textContent = '';
+    }
+};
+
+function displayResults(data) {
+    results.classList.remove('hidden');
+    
+    // Diagnosis
+    if (data.status && data.status.includes('Sick')) {
+        diagnosis.className = 'alert alert-danger';
+    } else {
+        diagnosis.className = 'alert alert-success';
+    }
+    diagnosis.textContent = data.status || data.diagnosis || 'Healthy';
+    
+    // Transcript
+    transcriptDisplay.textContent = data.transcript || 'No transcript available';
+    
+    // Features
+    audioFeatures.innerHTML = '';
+    Object.entries(data).forEach(([key, value]) => {
+        if (key !== 'transcript' && key !== 'status' && key !== 'diagnosis' && key !== 'error') {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `
+                <span class="feature-title">${key.replace(/_/g, ' ')}</span>
+                <span class="badge">${typeof value === 'number' ? value.toFixed(4) : value}</span>
+            `;
+            audioFeatures.appendChild(li);
+        }
+    });
+}
+</script>
+{% endblock %}

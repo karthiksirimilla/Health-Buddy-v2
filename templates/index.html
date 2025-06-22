@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Health Buddy{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+<div class="container">
+<h1>Your Personal Health Companion</h1>
+<p>Empowering you with AI-driven health insights, 24/7 medical chat, voice-based sickness detection, and personalized skin care .</p>
+<!-- <a href="/chat" class="btn-primary">Get Started Now</a> -->
+</div>
+    <div class="button-group", style="display: flexbox; flex-direction: row-reverse; align-items: center; gap: 10px;">
+        <a href="/chat" class="btn btn-chat">Chat with Health Buddy</a>
+        <a href="/derma_bot" class="btn btn-primary mt-3">Chat with DermaDetect</a>
+        <a href="/voice" class="btn btn-primary">Check Sickness</a>
+        
+    </div>
+</section>
+
+<!-- 🛠️ Features Section -->
+<section class="features">
+<div class="container">
+<h2>Why Choose Health Buddy?</h2>
+<div class="feature-grid">
+<div class="feature-card">
+<i class="fas fa-comments"></i>
+<h3>AI Health Chat</h3>
+<p>Get instant answers to your health questions with our intelligent chatbot.</p>
+</div>
+<div class="feature-card">
+<i class="fas fa-microphone-alt"></i>
+<h3>Voice Sickness Check</h3>
+<p>Detect early signs of illness by analyzing your voice for symptoms.</p>
+</div>
+<div class="feature-card">
+<i class="fas fa-spa"></i>
+<h3>Skin Care Bot</h3>
+<p>Receive personalized skin care advice and recommendations.</p>
+</div>
+<div class="feature-card">
+<i class="fas fa-shield-alt"></i>
+<h3>Privacy First</h3>
+<p>Your data is secure and never shared with third parties.</p>
+</div>
+</div>
+</div>
+</section>
+
+
+
+<!-- 🚀 Scripts -->
+<script>
+// Mobile menu toggle
+document.querySelector('.mobile-menu').addEventListener('click', function() {
+document.querySelector('.nav-links').classList.toggle('active');
+});
+</script>
+</body>
+{% endblock %}

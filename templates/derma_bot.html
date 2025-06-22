@@ -1,0 +1,161 @@
+<!-- templates/derma_bot.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .chat-container {
+    background: linear-gradient(to right, #6a11cb, #2575fc);
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .chat-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 30px;
+    max-width: 700px;
+    width: 100%;
+  }
+
+  #chat-box {
+    height: 396px;
+    overflow-y: auto;
+    background-color: #f1f3f6;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 15px;
+    text-align: left;
+  }
+
+  .form-control-file {
+    margin-bottom: 15px;
+  }
+
+  .send-btn {
+    background-color: #2575fc;
+    color: #fff;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+  }
+
+  .send-btn:hover {
+    background-color: #1a5edb;
+  }
+
+  h2 {
+    color: #343a40;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  p.subtext {
+    color: #6c757d;
+    margin-bottom: 20px;
+  }
+
+</style>
+<div class="chat-container">
+    <div class="chat-card text-center">
+      <h2>🩺 AI DermaBot</h2>
+      <p class="subtext">Upload a skin image and receive a smart diagnosis based on AI.</p>
+  
+      <div id="chat-box">
+        <!-- Chat messages will appear here -->
+      </div>
+  
+      <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" id="image-input" name="image" accept="image/*" class="form-control-file" required>
+        <small id="file-name" style="color: #555; display: block; margin-top: 5px;"></small>
+        <br>
+        <button type="submit" class="send-btn" id="send-btn">Send</button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+const chatBox = document.getElementById("chat-box");
+const uploadForm = document.getElementById("upload-form");
+const imageInput = document.getElementById("image-input");
+
+    // ✅ Show selected file name
+    imageInput.addEventListener("change", () => {
+      const fileNameDisplay = document.getElementById("file-name");
+      if (imageInput.files.length > 0) {
+        fileNameDisplay.textContent = `Selected: ${imageInput.files[0].name}`;
+      } else {
+        fileNameDisplay.textContent = "";
+      }
+    });
+
+uploadForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const file = imageInput.files[0];
+  if (!file) return;
+
+  const userMessage = document.createElement("div");
+  userMessage.classList.add("message", "user-msg");
+  userMessage.innerHTML = `<strong>You:</strong> 📤 Image sent...`;
+  chatBox.appendChild(userMessage);
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  try {
+    const response = await fetch("/dermabot-detect", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    const botMessage = document.createElement("div");
+    botMessage.classList.add("message", "bot-msg", "bot-success");
+
+    botMessage.innerHTML = `
+      <strong>DermaBot:</strong><br>
+    <img src="${data.image_url}" 
+     style="max-width: 300px; 
+            max-height: 300px; 
+            width: auto; 
+            height: auto; 
+            object-fit: contain; 
+            display: block; 
+            margin: 0 auto; 
+            border-radius: 8px; 
+            border: 2px solid #00cc66;" 
+     alt="Diagnosis Result"><br>
+      <strong>🔍 Diagnosis:</strong> ${data.label}<br>
+      <strong>📊 Confidence:</strong> ${data.confidence} (${data.instances} instance(s))<br>
+      <strong>💊 Prescription:</strong> ${data.prescription}<br>
+      <audio controls autoplay src="${data.audio_url}" style="margin-top: 1rem;"></audio><br>
+      ⚠️ <i>This is an AI-based observation. Always consult a certified dermatologist.</i>
+    `;
+
+    chatBox.appendChild(botMessage);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+  } catch (error) {
+    const errorMsg = document.createElement("div");
+    errorMsg.classList.add("message", "bot-msg");
+    errorMsg.innerHTML = `<strong>DermaBot:</strong> ❌ Something went wrong. Try again later.`;
+    chatBox.appendChild(errorMsg);
+  }
+
+  imageInput.value = "";
+});
+
+  </script>
+
+{% endblock %}
