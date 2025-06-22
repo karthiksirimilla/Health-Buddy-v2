@@ -8,8 +8,9 @@ import speech_recognition as sr
 import tempfile
 from flask_cors import CORS
 import os
-app = Flask(__name__)
 
+app = Flask(__name__)
+CORS(app) 
 # Home Page
 @app.route("/")
 def index():
@@ -70,10 +71,10 @@ def voice_analysis():
         audio_file = request.files['audio']
         if audio_file.filename == '':
             return jsonify({'error': 'Empty filename'}), 400
-
+        
         # Ensure WAV format
-        if not audio_file.filename.lower().endswith('.wav'):
-            return jsonify({'error': 'Only WAV files supported'}), 415
+        if not audio_file.filename.lower().endswith(('.wav', '.webm')):
+            return jsonify({'error': 'Only WAV or WEBM files supported'}), 415
 
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
             audio_file.save(tmp.name)

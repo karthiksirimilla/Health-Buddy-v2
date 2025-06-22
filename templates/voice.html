@@ -139,6 +139,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
 <script>
 let mediaRecorder;
 let audioChunks = [];
@@ -156,6 +157,11 @@ if (!navigator.mediaDevices || !window.MediaRecorder) {
     recordingStatus.textContent = "Web Audio API not supported in your browser.";
 }
 
+
+// Initialize FFmpeg at the top of your script
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+
 // Start/stop recording
 recordBtn.onclick = async () => {
     if (!mediaRecorder || mediaRecorder.state === 'inactive') {
@@ -171,24 +177,39 @@ recordBtn.onclick = async () => {
             mediaRecorder.onstop = async () => {
                 results.classList.add('hidden');
                 loading.classList.remove('hidden');
+
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const formData = new FormData();
-                formData.append('audio', audioBlob, 'recording.webm');
-                
+
                 try {
-                    const response = await fetch('/voice-check', {
+                    // Load FFmpeg
+                    if (!ffmpeg.isLoaded()) {
+                        await ffmpeg.load();
+                    }
+
+                    // Convert webm to wav
+                    ffmpeg.FS('writeFile', 'input.webm', await fetchFile(audioBlob));
+                    await ffmpeg.run('-i', 'input.webm', 'output.wav');
+                    const wavData = ffmpeg.FS('readFile', 'output.wav');
+                    const wavBlob = new Blob([wavData.buffer], { type: 'audio/wav' });
+
+                    // Upload WAV to backend
+                    const formData = new FormData();
+                    formData.append('audio', wavBlob, 'recording.wav');
+
+                    const response = await fetch('http://127.0.0.1:5001/voice-check', {
                         method: 'POST',
                         body: formData
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error('Server error: ' + response.status);
                     }
-                    
+
                     const data = await response.json();
                     displayResults(data);
+
                 } catch (error) {
-                    console.error('Error:', error);
+                    console.error('Conversion or upload error:', error);
                     diagnosis.className = 'alert alert-danger';
                     diagnosis.textContent = 'Error: ' + error.message;
                     results.classList.remove('hidden');
@@ -200,8 +221,9 @@ recordBtn.onclick = async () => {
             mediaRecorder.start();
             recordBtn.textContent = 'Stop Recording';
             recordingStatus.textContent = 'Recording...';
+
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Microphone error:', error);
             recordingStatus.textContent = 'Error: ' + error.message;
         }
     } else {
